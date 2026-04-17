@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>옵션 A - 2단계 순차 선택</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .phone-frame {
+    width: 100%;
+    max-width: 390px;
+    background: #fff;
+    min-height: 100vh;
+    position: relative;
+  }
+  .header {
+    background: #fff;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header .back { font-size: 20px; cursor: pointer; color: #333; text-decoration: none; }
+  .header .title { font-size: 17px; font-weight: 600; color: #333; }
+  .step-indicator {
+    display: flex;
+    gap: 8px;
+    padding: 20px 24px 0;
+  }
+  .step-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    transition: background 0.3s;
+  }
+  .step-dot.active { background: #2D2D2D; }
+  .content { padding: 24px 20px; }
+  .step-label {
+    font-size: 13px;
+    color: #999;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+  }
+  .page-subtitle {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 28px;
+  }
+  .level-card {
+    border: 2px solid #e8e8e8;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .level-card:active { transform: scale(0.98); }
+  .level-card.selected {
+    border-color: #2D2D2D;
+    background: #fafafa;
+  }
+  .level-card .emoji { font-size: 28px; margin-bottom: 10px; }
+  .level-card .name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+  }
+  .level-card .desc {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .level-card .who {
+    font-size: 13px;
+    color: #888;
+    background: #f5f5f5;
+    padding: 10px 14px;
+    border-radius: 10px;
+    line-height: 1.5;
+  }
+  .level-card.selected .who { background: #f0f0f0; }
+  .check-icon {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: transparent;
+    transition: all 0.2s;
+  }
+  .level-card.selected .check-icon {
+    background: #2D2D2D;
+    border-color: #2D2D2D;
+    color: #fff;
+  }
+  .tip {
+    text-align: center;
+    font-size: 13px;
+    color: #aaa;
+    margin-top: 8px;
+  }
+  /* Step 2 */
+  .step2 { display: none; }
+  .selected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f0f0f0;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 24px;
+  }
+  .time-section-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .time-btn {
+    padding: 16px 0;
+    border: 2px solid #e8e8e8;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .time-btn:active { transform: scale(0.95); }
+  .time-btn.selected {
+    border-color: #2D2D2D;
+    background: #2D2D2D;
+    color: #fff;
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #e0e0e0;
+    color: #999;
+    margin-top: 16px;
+  }
+  .submit-btn.active {
+    background: #2D2D2D;
+    color: #fff;
+  }
+  .submit-btn.active:active { transform: scale(0.98); opacity: 0.9; }
+  /* Complete */
+  .step-complete {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .complete-emoji { font-size: 64px; margin-bottom: 20px; }
+  .complete-title { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; }
+  .complete-desc { font-size: 15px; color: #888; line-height: 1.6; }
+  .complete-summary {
+    background: #f8f8f8;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 32px;
+    text-align: left;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    font-size: 15px;
+  }
+  .summary-row:not(:last-child) { border-bottom: 1px solid #eee; }
+  .summary-label { color: #888; }
+  .summary-value { font-weight: 600; color: #1a1a1a; }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="header">
+    <a class="back" id="backBtn">←</a>
+    <span class="title">수업 선택</span>
+  </div>
+
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+  </div>
+
+  <!-- Step 1: 난이도 -->
+  <div class="step1" id="step1">
+    <div class="content">
+      <div class="step-label">STEP 1</div>
+      <div class="page-title">난이도를 선택해주세요</div>
+      <div class="page-subtitle">나에게 맞는 수업을 골라주세요</div>
+
+      <div class="level-card" id="card-basic" onclick="selectLevel('basic')">
+        <div class="check-icon">✓</div>
+        <div class="emoji">🌱</div>
+        <div class="name">기본기반</div>
+        <div class="desc">처음부터 차근차근, 올바른 자세 만들기</div>
+        <div class="who">필라테스가 처음이거나,<br>운동을 오래 쉬었다면 추천!</div>
+      </div>
+
+      <div class="level-card" id="card-inter" onclick="selectLevel('inter')">
+        <div class="check-icon">✓</div>
+        <div class="emoji">🔥</div>
+        <div class="name">중급반</div>
+        <div class="desc">탄탄한 기본 위에, 강도 높은 루틴</div>
+        <div class="who">필라테스 경험이 있고,<br>좀 더 챌린지하고 싶다면!</div>
+      </div>
+
+      <p class="tip">잘 모르겠다면 기본기반을 추천드려요 😊</p>
+      <p class="tip" style="margin-top:6px;">수업 참여 후 난이도 변경도 가능해요</p>
+    </div>
+  </div>
+
+  <!-- Step 2: 시간 -->
+  <div class="step2" id="step2">
+    <div class="content">
+      <div class="step-label">STEP 2</div>
+      <div class="page-title">시간을 선택해주세요</div>
+      <div class="selected-badge" id="selectedBadge"></div>
+
+      <div class="time-section-label">☀️ 오전</div>
+      <div class="time-grid">
+        <button class="time-btn" onclick="selectTime(this)">6시</button>
+        <button class="time-btn" onclick="selectTime(this)">7시</button>
+        <button class="time-btn" onclick="selectTime(this)">8시</button>
+        <button class="time-btn" onclick="selectTime(this)">9시</button>
+        <button class="time-btn" onclick="selectTime(this)">10시</button>
+        <button class="time-btn" onclick="selectTime(this)">11시</button>
+      </div>
+
+      <div class="time-section-label">🌙 저녁</div>
+      <div class="time-grid">
+        <button class="time-btn" onclick="selectTime(this)">6시</button>
+        <button class="time-btn" onclick="selectTime(this)">7시</button>
+        <button class="time-btn" onclick="selectTime(this)">8시</button>
+        <button class="time-btn" onclick="selectTime(this)">9시</button>
+        <button class="time-btn" onclick="selectTime(this)">10시</button>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="complete()">선택 완료하기</button>
+    </div>
+  </div>
+
+  <!-- Complete -->
+  <div class="step-complete" id="stepComplete">
+    <div class="complete-emoji">🎉</div>
+    <div class="complete-title">수업 선택 완료!</div>
+    <div class="complete-desc">내일부터 선택하신 시간에<br>수업 링크를 보내드릴게요</div>
+    <div class="complete-summary">
+      <div class="summary-row">
+        <span class="summary-label">난이도</span>
+        <span class="summary-value" id="resultLevel"></span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">시간</span>
+        <span class="summary-value" id="resultTime"></span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">첫 수업</span>
+        <span class="summary-value">내일부터 시작</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedLevel = '';
+  let selectedTime = '';
+  let currentStep = 1;
+
+  function selectLevel(level) {
+    selectedLevel = level;
+    document.getElementById('card-basic').classList.toggle('selected', level === 'basic');
+    document.getElementById('card-inter').classList.toggle('selected', level === 'inter');
+
+    setTimeout(() => {
+      document.getElementById('step1').style.display = 'none';
+      document.getElementById('step2').style.display = 'block';
+      document.getElementById('dot2').classList.add('active');
+
+      const badge = document.getElementById('selectedBadge');
+      badge.textContent = level === 'basic' ? '🌱 기본기반 선택' : '🔥 중급반 선택';
+      currentStep = 2;
+    }, 300);
+  }
+
+  function selectTime(btn) {
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedTime = btn.textContent;
+    document.getElementById('submitBtn').classList.add('active');
+  }
+
+  function complete() {
+    if (!selectedTime) return;
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('stepComplete').style.display = 'block';
+    document.getElementById('resultLevel').textContent = selectedLevel === 'basic' ? '🌱 기본기반' : '🔥 중급반';
+    document.getElementById('resultTime').textContent = selectedTime;
+    document.querySelector('.step-indicator').style.display = 'none';
+  }
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    if (currentStep === 2) {
+      document.getElementById('step2').style.display = 'none';
+      document.getElementById('step1').style.display = 'block';
+      document.getElementById('dot2').classList.remove('active');
+      currentStep = 1;
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>옵션 C - 추천형</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .phone-frame {
+    width: 100%;
+    max-width: 390px;
+    background: #fff;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  .header {
+    background: #fff;
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header .back { font-size: 20px; cursor: pointer; color: #333; text-decoration: none; }
+  .header .title { font-size: 17px; font-weight: 600; color: #333; }
+  .step-indicator {
+    display: flex;
+    gap: 8px;
+    padding: 20px 24px 0;
+  }
+  .step-dot {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #e0e0e0;
+    transition: background 0.3s;
+  }
+  .step-dot.active { background: #2D2D2D; }
+
+  /* Step screens */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .content { padding: 24px 20px; }
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+  }
+  .page-subtitle {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 32px;
+    line-height: 1.5;
+  }
+
+  /* Question buttons */
+  .q-btn {
+    width: 100%;
+    border: 2px solid #e8e8e8;
+    border-radius: 16px;
+    padding: 22px 24px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+  }
+  .q-btn:active { transform: scale(0.98); background: #fafafa; }
+  .q-btn .q-emoji { font-size: 32px; }
+  .q-btn .q-text .q-main {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+  }
+  .q-btn .q-text .q-sub {
+    font-size: 13px;
+    color: #999;
+  }
+
+  /* Recommendation */
+  .reco-card {
+    background: linear-gradient(135deg, #f8f8f8, #f0f0f0);
+    border-radius: 20px;
+    padding: 32px 24px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .reco-emoji { font-size: 48px; margin-bottom: 12px; }
+  .reco-label {
+    font-size: 13px;
+    color: #999;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .reco-name {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+  }
+  .reco-desc {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.6;
+  }
+  .change-link {
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 13px;
+    color: #aaa;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .reco-next-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    background: #2D2D2D;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .reco-next-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+  /* Time select */
+  .selected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #f0f0f0;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 24px;
+  }
+  .time-section-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .time-btn {
+    padding: 16px 0;
+    border: 2px solid #e8e8e8;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .time-btn:active { transform: scale(0.95); }
+  .time-btn.selected {
+    border-color: #2D2D2D;
+    background: #2D2D2D;
+    color: #fff;
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #e0e0e0;
+    color: #999;
+    margin-top: 16px;
+  }
+  .submit-btn.active {
+    background: #2D2D2D;
+    color: #fff;
+  }
+  .submit-btn.active:active { transform: scale(0.98); opacity: 0.9; }
+
+  /* Complete */
+  .complete-emoji { font-size: 64px; margin-bottom: 20px; text-align: center; }
+  .complete-title { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 8px; text-align: center; }
+  .complete-desc { font-size: 15px; color: #888; line-height: 1.6; text-align: center; }
+  .complete-summary {
+    background: #f8f8f8;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 32px;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    font-size: 15px;
+  }
+  .summary-row:not(:last-child) { border-bottom: 1px solid #eee; }
+  .summary-label { color: #888; }
+  .summary-value { font-weight: 600; color: #1a1a1a; }
+
+  /* Alternative selection modal */
+  .alt-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  .alt-overlay.show { display: flex; }
+  .alt-sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 390px;
+    border-radius: 20px 20px 0 0;
+    padding: 28px 20px;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+  .alt-sheet-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .alt-option {
+    border: 2px solid #e8e8e8;
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.2s;
+  }
+  .alt-option:active { background: #f8f8f8; }
+  .alt-option .alt-emoji { font-size: 24px; }
+  .alt-option .alt-name { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .alt-option .alt-desc { font-size: 13px; color: #888; }
+  .alt-cancel {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    background: #f5f5f5;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="header">
+    <a class="back" id="backBtn">←</a>
+    <span class="title">수업 선택</span>
+  </div>
+
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+  </div>
+
+  <!-- Screen 1: Question -->
+  <div class="screen active" id="screen1">
+    <div class="content">
+      <div class="page-title">나에게 맞는 수업 찾기 💪</div>
+      <div class="page-subtitle">간단한 질문 하나로<br>딱 맞는 수업을 추천해드릴게요</div>
+
+      <div class="q-btn" onclick="answer('no')">
+        <div class="q-emoji">🙋‍♀️</div>
+        <div class="q-text">
+          <div class="q-main">아직 필라테스가 익숙하지 않아요</div>
+          <div class="q-sub">처음이거나 운동을 오래 쉬었어요</div>
+        </div>
+      </div>
+
+      <div class="q-btn" onclick="answer('yes')">
+        <div class="q-emoji">💪</div>
+        <div class="q-text">
+          <div class="q-main">필라테스 경험이 있어요</div>
+          <div class="q-sub">기본 동작은 알고, 더 도전하고 싶어요</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 2: Recommendation -->
+  <div class="screen" id="screen2">
+    <div class="content">
+      <div class="reco-card">
+        <div class="reco-label">나에게 딱 맞는 수업</div>
+        <div class="reco-emoji" id="recoEmoji"></div>
+        <div class="reco-name" id="recoName"></div>
+        <div class="reco-desc" id="recoDesc"></div>
+        <div style="font-size:13px; color:#aaa; margin-top:14px;">수업 참여 후 난이도 변경도 가능해요</div>
+        <div class="change-link" onclick="showAltSheet()">다른 난이도 선택하기</div>
+      </div>
+      <button class="reco-next-btn" onclick="goToTime()">이 수업으로 시간 선택하기 →</button>
+    </div>
+  </div>
+
+  <!-- Screen 3: Time -->
+  <div class="screen" id="screen3">
+    <div class="content">
+      <div class="page-title">시간을 선택해주세요</div>
+      <div class="page-subtitle">매일 이 시간에 수업 링크를 보내드려요</div>
+      <div class="selected-badge" id="timeBadge"></div>
+
+      <div class="time-section-label">☀️ 오전</div>
+      <div class="time-grid">
+        <button class="time-btn" onclick="selectTime(this)">6시</button>
+        <button class="time-btn" onclick="selectTime(this)">7시</button>
+        <button class="time-btn" onclick="selectTime(this)">8시</button>
+        <button class="time-btn" onclick="selectTime(this)">9시</button>
+        <button class="time-btn" onclick="selectTime(this)">10시</button>
+        <button class="time-btn" onclick="selectTime(this)">11시</button>
+      </div>
+
+      <div class="time-section-label">🌙 저녁</div>
+      <div class="time-grid">
+        <button class="time-btn" onclick="selectTime(this)">6시</button>
+        <button class="time-btn" onclick="selectTime(this)">7시</button>
+        <button class="time-btn" onclick="selectTime(this)">8시</button>
+        <button class="time-btn" onclick="selectTime(this)">9시</button>
+        <button class="time-btn" onclick="selectTime(this)">10시</button>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="complete()">선택 완료하기</button>
+    </div>
+  </div>
+
+  <!-- Screen 4: Complete -->
+  <div class="screen" id="screen4">
+    <div class="content">
+      <div class="complete-emoji">🎉</div>
+      <div class="complete-title">수업 선택 완료!</div>
+      <div class="complete-desc">내일부터 선택하신 시간에<br>수업 링크를 보내드릴게요</div>
+      <div class="complete-summary">
+        <div class="summary-row">
+          <span class="summary-label">난이도</span>
+          <span class="summary-value" id="resultLevel"></span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">시간</span>
+          <span class="summary-value" id="resultTime"></span>
+        </div>
+        <div class="summary-row">
+          <span class="summary-label">첫 수업</span>
+          <span class="summary-value">내일부터 시작</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alt selection bottom sheet -->
+  <div class="alt-overlay" id="altOverlay" onclick="hideAltSheet()">
+    <div class="alt-sheet" onclick="event.stopPropagation()">
+      <div class="alt-sheet-title">난이도 변경</div>
+      <div class="alt-option" onclick="changeLevel('basic')">
+        <div class="alt-emoji">🌱</div>
+        <div>
+          <div class="alt-name">기본기반</div>
+          <div class="alt-desc">처음부터 차근차근 올바른 자세 만들기</div>
+        </div>
+      </div>
+      <div class="alt-option" onclick="changeLevel('inter')">
+        <div class="alt-emoji">🔥</div>
+        <div>
+          <div class="alt-name">중급반</div>
+          <div class="alt-desc">탄탄한 기본 위에 강도 높은 루틴</div>
+        </div>
+      </div>
+      <button class="alt-cancel" onclick="hideAltSheet()">취소</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selectedLevel = '';
+  let selectedTime = '';
+  let currentScreen = 1;
+
+  const levels = {
+    basic: { emoji: '🌱', name: '기본기반', desc: '처음부터 차근차근, 올바른 자세를 만들어가는 수업이에요.\n필라테스의 기본기를 탄탄하게 잡아드립니다.' },
+    inter: { emoji: '🔥', name: '중급반', desc: '탄탄한 기본기 위에 강도 높은 루틴으로 진행돼요.\n더 깊은 근육 자극과 도전적인 동작을 경험하세요.' }
+  };
+
+  function showScreen(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen' + n).classList.add('active');
+    for (let i = 1; i <= 3; i++) {
+      document.getElementById('dot' + i).classList.toggle('active', i <= n);
+    }
+    currentScreen = n;
+    if (n === 4) document.querySelector('.step-indicator').style.display = 'none';
+  }
+
+  function setRecommendation(level) {
+    selectedLevel = level;
+    const l = levels[level];
+    document.getElementById('recoEmoji').textContent = l.emoji;
+    document.getElementById('recoName').textContent = l.name;
+    document.getElementById('recoDesc').textContent = l.desc;
+  }
+
+  function answer(exp) {
+    setRecommendation(exp === 'no' ? 'basic' : 'inter');
+    showScreen(2);
+  }
+
+  function goToTime() {
+    const l = levels[selectedLevel];
+    document.getElementById('timeBadge').textContent = l.emoji + ' ' + l.name + ' 선택';
+    showScreen(3);
+  }
+
+  function selectTime(btn) {
+    document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedTime = btn.textContent;
+    document.getElementById('submitBtn').classList.add('active');
+  }
+
+  function complete() {
+    if (!selectedTime) return;
+    showScreen(4);
+    const l = levels[selectedLevel];
+    document.getElementById('resultLevel').textContent = l.emoji + ' ' + l.name;
+    document.getElementById('resultTime').textContent = selectedTime;
+  }
+
+  function showAltSheet() { document.getElementById('altOverlay').classList.add('show'); }
+  function hideAltSheet() { document.getElementById('altOverlay').classList.remove('show'); }
+  function changeLevel(level) {
+    setRecommendation(level);
+    hideAltSheet();
+  }
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    if (currentScreen > 1) showScreen(currentScreen - 1);
+  });
+</script>
+</body>
+</html>
