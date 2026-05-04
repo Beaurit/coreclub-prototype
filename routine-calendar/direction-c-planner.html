@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>뷰릿 코어클럽 — 루틴 캘린더</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    /* ─── Design Tokens ──────────────────────────────────────── */
+    :root {
+      /* 뷰릿 브랜드 팔레트 — 60-30-10 위계 */
+      --ivory:       #FAFAFA;       /* 60% 본문 배경 (오프화이트) */
+      --ivory-dark:  #F5F5F5;
+      --ivory-deep:  #EDEDED;
+      --sage:        #e22929;       /* 10% 시그니처 레드 — 오늘 1포인트 */
+      --sage-light:  #F5BCBC;       /* hbadge--day border (옅은 분홍빨강) */
+      --sage-muted:  #fae2e3;       /* 30% 라이트 핑크 (감쌈) */
+      --mocha:       #1A1A1A;       /* 강조 텍스트 = 차콜 (브랜드/이름 배지 bg) */
+      --mocha-mid:   #555555;
+      --mocha-light: #888888;
+      --warm-gray:   #888888;
+      --warm-gray-l: #BBBBBB;
+      --warm-gray-ll:#EDEDED;
+      --ink:         #1A1A1A;
+
+      /* 상황 태그 — 카테고리 분리는 유지하되 톤 절제 */
+      --tag-mat:    #fae2e3;        /* 매트 필수 = 라이트 핑크 (브랜드) */
+      --tag-mat-fg: #1A1A1A;
+      --tag-tool:   #EDEDED;        /* 도구 필요 = 중립 */
+      --tag-tool-fg:#1A1A1A;
+      --tag-travel: #F5F5F5;        /* 이동 중 호환 = 옅은 회색 */
+      --tag-travel-fg:#555555;
+      --tag-alt:    #FCEEEF;        /* 대체 가능 = 매우 옅은 핑크 */
+      --tag-alt-fg: #B89399;
+
+      --radius-card: 16px;
+      --radius-pill: 100px;
+      --shadow-card: 0 2px 12px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
+      --shadow-hero: 0 4px 24px rgba(0,0,0,.06);
+
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+    }
+
+    /* ─── Reset ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+    body {
+      background: var(--ivory);
+      color: var(--ink);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─── Sticky Header ──────────────────────────────────────── */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(245,241,234,.92);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--ivory-deep);
+      padding: 10px 20px;
+    }
+    .header-inner {
+      max-width: 540px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .brand {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      color: var(--mocha);
+      text-transform: uppercase;
+    }
+    .header-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .hbadge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+    .hbadge--name   { background: var(--mocha); color: #fff; }
+    .hbadge--day    { background: var(--sage-muted); color: var(--tag-mat-fg); border: 1px solid var(--sage-light); }
+    .hbadge--time   { background: var(--ivory-deep); color: var(--warm-gray); }
+
+    /* ─── Layout ─────────────────────────────────────────────── */
+    .page {
+      max-width: 540px;
+      margin: 0 auto;
+      padding: 0 16px 64px;
+    }
+
+    /* ─── Hero ───────────────────────────────────────────────── */
+    .hero {
+      margin: 20px 0 28px;
+      background: #fae2e3;             /* 라이트 핑크 히어로 (모카 다크에서 큰 변경) */
+      border-radius: var(--radius-card);
+      padding: 24px 22px 22px;
+      box-shadow: var(--shadow-hero);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 80% 10%, rgba(255,255,255,.28) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .hero-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--mocha-mid);          /* #555 — 옅은 핑크 위 가독성 */
+      margin-bottom: 6px;
+    }
+    .hero-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--ink);                /* 차콜 텍스트 */
+      line-height: 1.3;
+      margin-bottom: 4px;
+    }
+    .hero-sub {
+      font-size: 12px;
+      color: var(--mocha-mid);
+      margin-bottom: 20px;
+    }
+
+    /* Packing grid */
+    .pack-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .pack-item {
+      background: rgba(255,255,255,.55);    /* 핑크 위 반투명 화이트 카드 */
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 12px;
+      padding: 12px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .pack-item--full {
+      grid-column: 1 / -1;
+    }
+    .pack-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+    .pack-icon svg {
+      width: 100%;
+      height: 100%;
+    }
+    .pack-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);                /* 차콜 텍스트 */
+      line-height: 1.2;
+    }
+    .pack-days {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--mocha-mid);          /* #555 — 핑크 위 가독성 */
+      letter-spacing: .02em;
+    }
+
+    /* ─── Section Label ──────────────────────────────────────── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--warm-gray);
+      margin-bottom: 12px;
+    }
+
+    /* ─── Timeline Divider ───────────────────────────────────── */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    /* ─── Day Card ───────────────────────────────────────────── */
+    .day-card {
+      background: #fff;
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: 18px 18px 16px;
+      border: 1px solid var(--ivory-deep);
+      position: relative;
+      transition: box-shadow .18s ease;
+    }
+    .day-card--today {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 1.5px var(--sage), var(--shadow-card);
+    }
+    .day-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .day-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .day-number {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--warm-gray);
+    }
+    .day-date {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+    .day-weekday {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--warm-gray);
+    }
+    .today-pill {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      background: var(--sage);
+      color: #fff;
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      align-self: flex-start;
+      flex-shrink: 0;
+    }
+    .day-time {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--mocha-mid);
+      background: var(--ivory-dark);
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      align-self: flex-start;
+      flex-shrink: 0;
+      letter-spacing: .01em;
+    }
+
+    .routine-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .routine-name .nv-mark {
+      font-size: 12px;
+      color: var(--sage);
+      margin-left: 4px;
+      vertical-align: 1px;
+    }
+    .routine-list-c {
+      list-style: none;
+      padding: 10px 12px;
+      margin: 0 0 10px;
+      background: rgba(250,226,227,.4);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .routine-list-c li {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--ink);
+      padding-left: 10px;
+      position: relative;
+    }
+    .routine-list-c li::before {
+      content: '·';
+      position: absolute;
+      left: 2px;
+      color: var(--warm-gray);
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .supply-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .supply-icon {
+      width: 14px;
+      height: 14px;
+      color: var(--warm-gray-l);
+      flex-shrink: 0;
+    }
+    .supply-text {
+      font-size: 11px;
+      color: var(--warm-gray);
+      font-weight: 500;
+    }
+
+    /* ─── Situation Tag Pills ────────────────────────────────── */
+    .tag-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+    .tag--mat    { background: var(--tag-mat);    color: var(--tag-mat-fg);    }
+    .tag--tool   { background: var(--tag-tool);   color: var(--tag-tool-fg);   }
+    .tag--travel { background: var(--tag-travel);  color: var(--tag-travel-fg); }
+    .tag--alt    { background: var(--tag-alt);    color: var(--tag-alt-fg);    }
+
+    /* ─── Locked Section ─────────────────────────────────────── */
+    .locked-section {
+      margin-top: 8px;
+    }
+    .locked-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      padding: 14px 18px;
+      background: var(--ivory-dark);
+      border-radius: var(--radius-card);
+      border: 1px dashed var(--warm-gray-l);
+      margin-bottom: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background .15s ease;
+    }
+    .locked-toggle:hover { background: var(--ivory-deep); }
+    .locked-toggle-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--warm-gray);
+      flex-shrink: 0;
+      transition: transform .25s ease;
+    }
+    .locked-toggle-icon--open { transform: rotate(180deg); }
+    .locked-toggle-text {
+      flex: 1;
+    }
+    .locked-toggle-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--warm-gray);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .locked-toggle-sub {
+      font-size: 11px;
+      color: var(--warm-gray-l);
+      margin-top: 1px;
+    }
+    .locked-body {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 8px;
+    }
+    .locked-body--open { display: flex; }
+    .locked-card {
+      background: var(--ivory-dark);
+      border-radius: 12px;
+      border: 1px dashed var(--warm-gray-ll);
+      padding: 13px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .locked-card-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .locked-day-num {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--warm-gray-l);
+    }
+    .locked-date {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--warm-gray);
+    }
+    .locked-card-right {
+      margin-left: auto;
+      text-align: right;
+    }
+    .locked-reveal {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--warm-gray-l);
+    }
+    .locked-reveal strong {
+      color: var(--warm-gray);
+      font-weight: 700;
+    }
+    .lock-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--warm-gray-ll);
+      flex-shrink: 0;
+    }
+
+    /* ─── Footer ─────────────────────────────────────────────── */
+    .page-footer {
+      text-align: center;
+      font-size: 11px;
+      color: var(--warm-gray-l);
+      padding-top: 8px;
+    }
+
+    /* ─── Responsive tweaks ──────────────────────────────────── */
+    @media (max-width: 380px) {
+      .hero-title { font-size: 17px; }
+      .pack-grid  { grid-template-columns: 1fr 1fr; }
+      .day-date   { font-size: 16px; }
+      .routine-name { font-size: 14px; }
+    }
+    @media (min-width: 540px) {
+      .page { padding-left: 20px; padding-right: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     STICKY HEADER
+══════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div class="header-inner">
+    <span class="brand">Beaurit Core Club</span>
+    <div class="header-badges">
+      <span class="hbadge hbadge--name">김단비</span>
+      <span class="hbadge hbadge--day">Day 9 / 20</span>
+      <span class="hbadge hbadge--time">매일 오전 07:00</span>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ══════════════════════════════════════════════════════
+       HERO — 7일 통합 준비물
+  ══════════════════════════════════════════════════════ -->
+  <section class="hero" aria-label="다음 7일 통합 준비물">
+    <p class="hero-label">Packing List</p>
+    <h1 class="hero-title">다음 7일에<br>필요한 것들</h1>
+    <p class="hero-sub">출장 짐 싸듯, 한 번에 챙겨보세요</p>
+
+    <div class="pack-grid">
+
+      <!-- 매트 -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="14" width="28" height="12" rx="6" fill="rgba(0,0,0,.06)"/>
+            <rect x="6" y="14" width="28" height="12" rx="6" stroke="rgba(0,0,0,.4)" stroke-width="1.5"/>
+            <path d="M10 20h20" stroke="rgba(0,0,0,.4)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="pack-name">매트</div>
+        <div class="pack-days">매일 필요</div>
+      </div>
+
+      <!-- 뷰릿 홈필라set -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="7" y="13" width="26" height="20" rx="3" stroke="rgba(0,0,0,.4)" stroke-width="1.5" fill="rgba(0,0,0,.06)"/>
+            <path d="M15 13v-3a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v3" stroke="rgba(0,0,0,.4)" stroke-width="1.5" fill="none"/>
+            <line x1="7" y1="22" x2="33" y2="22" stroke="rgba(0,0,0,.35)" stroke-width="1.3"/>
+          </svg>
+        </div>
+        <div class="pack-name">뷰릿 홈필라set</div>
+        <div class="pack-days">일·화·목·금</div>
+      </div>
+
+      <!-- 뷰릿 베이직바 -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="18" width="32" height="5" rx="2.5" fill="rgba(0,0,0,.4)"/>
+            <circle cx="6" cy="20.5" r="2.4" fill="rgba(0,0,0,.55)"/>
+            <circle cx="34" cy="20.5" r="2.4" fill="rgba(0,0,0,.55)"/>
+          </svg>
+        </div>
+        <div class="pack-name">뷰릿 베이직바</div>
+        <div class="pack-days">월·수·토</div>
+      </div>
+
+      <!-- 다리밴드 -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 20 C10 14, 14 10, 20 10 C26 10, 30 14, 32 20" stroke="rgba(0,0,0,.45)" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <path d="M8 20 C10 26, 14 30, 20 30 C26 30, 30 26, 32 20" stroke="rgba(0,0,0,.25)" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <ellipse cx="8" cy="20" rx="2" ry="2.5" fill="rgba(0,0,0,.5)"/>
+            <ellipse cx="32" cy="20" rx="2" ry="2.5" fill="rgba(0,0,0,.5)"/>
+          </svg>
+        </div>
+        <div class="pack-name">다리밴드</div>
+        <div class="pack-days">일·월·화·목·금</div>
+      </div>
+
+      <!-- 티칭밴드 -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 20 C12 16, 16 14, 20 14 C24 14, 28 16, 32 20" stroke="rgba(0,0,0,.45)" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <path d="M8 20 C12 24, 16 26, 20 26 C24 26, 28 24, 32 20" stroke="rgba(0,0,0,.3)" stroke-width="2" stroke-linecap="round" fill="none"/>
+            <rect x="6" y="18" width="4" height="4" rx="1" fill="rgba(0,0,0,.5)"/>
+            <rect x="30" y="18" width="4" height="4" rx="1" fill="rgba(0,0,0,.5)"/>
+          </svg>
+        </div>
+        <div class="pack-name">티칭밴드</div>
+        <div class="pack-days">일·월</div>
+      </div>
+
+      <!-- 토핑 (레드/핑크/세트) -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 26h30" stroke="rgba(0,0,0,.45)" stroke-width="1.7"/>
+            <path d="M9 26a11 11 0 0 1 22 0" fill="#fae2e3" stroke="rgba(0,0,0,.45)" stroke-width="1.7"/>
+            <circle cx="16" cy="22" r="2" fill="#e22929" fill-opacity=".3" stroke="rgba(0,0,0,.4)" stroke-width="1"/>
+            <circle cx="24" cy="22" r="2" fill="#FFFFFF" stroke="rgba(0,0,0,.4)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="pack-name">토핑set<br><span style="font-weight:500;font-size:10px;opacity:.7;">(레드·핑크)</span></div>
+        <div class="pack-days">일·수·토</div>
+      </div>
+
+      <!-- 침대 -->
+      <div class="pack-item">
+        <div class="pack-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5 28v-7a4 4 0 0 1 4-4h22a4 4 0 0 1 4 4v7" stroke="rgba(0,0,0,.45)" stroke-width="1.7" fill="none"/>
+            <line x1="3" y1="28" x2="37" y2="28" stroke="rgba(0,0,0,.45)" stroke-width="1.7"/>
+            <rect x="11" y="20" width="8" height="4" rx="1.5" fill="rgba(0,0,0,.25)"/>
+          </svg>
+        </div>
+        <div class="pack-name">침대 · 베개</div>
+        <div class="pack-days">릴렉스 day (수·토)</div>
+      </div>
+
+    </div><!-- /pack-grid -->
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════
+       7-DAY TIMELINE
+  ══════════════════════════════════════════════════════ -->
+  <p class="section-label">이번 주 루틴 — 코어클럽 65기 중급반</p>
+  <div class="timeline" role="list" aria-label="7일 루틴 타임라인">
+
+    <!-- ── Day 9 · 오늘 — 어깨·하체 ── -->
+    <article class="day-card day-card--today" role="listitem" aria-label="Day 9 오늘 어깨 하체">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 9</span>
+          <span class="day-date">04월 12일</span>
+          <span class="day-weekday">일요일</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+          <span class="today-pill" aria-label="오늘">오늘</span>
+          <span class="day-time">오전 07:00</span>
+        </div>
+      </div>
+      <p class="routine-name">어깨 · 하체</p>
+      <ul class="routine-list-c">
+        <li>뷰릿 코어스텝1</li>
+        <li>직각어깨100ver2</li>
+        <li>엉밑살 뿌시기</li>
+        <li>종아리 알 뿌수기</li>
+        <li>골반스트레칭</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">홈필라set · 다리밴드 · 티칭밴드 · 핑크토핑 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--tool">도구 다수</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── Day 10 — 어깨 마라맛 ── -->
+    <article class="day-card" role="listitem" aria-label="Day 10 어깨 마라맛">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 10</span>
+          <span class="day-date">04월 13일</span>
+          <span class="day-weekday">월요일</span>
+        </div>
+        <span class="day-time">오전 07:00</span>
+      </div>
+      <p class="routine-name">어깨 — 마라맛</p>
+      <ul class="routine-list-c">
+        <li>뷰릿 승모롤링 매운맛2</li>
+        <li>마라맛9</li>
+        <li>마라맛10</li>
+        <li>등 스트레칭</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">베이직바 · 다리밴드 · 티칭밴드 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--tool">마라맛</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── Day 11 — 전신 마라맛 ── -->
+    <article class="day-card" role="listitem" aria-label="Day 11 전신 마라맛">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 11</span>
+          <span class="day-date">04월 14일</span>
+          <span class="day-weekday">화요일</span>
+        </div>
+        <span class="day-time">오전 07:00</span>
+      </div>
+      <p class="routine-name">전신 — 마라맛</p>
+      <ul class="routine-list-c">
+        <li>뷰릿 스쿼트플러스1</li>
+        <li>마라맛11</li>
+        <li>코어100ver4</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">홈필라set · 다리밴드 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--tool">마라맛</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── Day 12 — 복부 릴렉스 ── -->
+    <article class="day-card" role="listitem" aria-label="Day 12 복부 릴렉스">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 12</span>
+          <span class="day-date">04월 15일</span>
+          <span class="day-weekday">수요일</span>
+        </div>
+        <span class="day-time">오전 07:00</span>
+      </div>
+      <p class="routine-name">복부 — 릴렉스</p>
+      <ul class="routine-list-c">
+        <li>뷰릿 뱃살타파</li>
+        <li>굽은등 교정</li>
+        <li>붓기제로 마사지</li>
+        <li>코어100ver5</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">베이직바 · 토핑set · 침대 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--alt">릴렉스</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── Day 13 — 하체 ⭐ 새 비디오 ── -->
+    <article class="day-card" role="listitem" aria-label="Day 13 하체 새 비디오">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 13</span>
+          <span class="day-date">04월 16일</span>
+          <span class="day-weekday">목요일</span>
+        </div>
+        <span class="day-time">오전 07:00</span>
+      </div>
+      <p class="routine-name">하체 <span class="nv-mark" title="새 비디오">⭐</span></p>
+      <ul class="routine-list-c">
+        <li>뷰릿 직각어깨100ver2</li>
+        <li>팔뚝살 돌려깎기2</li>
+        <li>흉곽100%줄이기4 (NEW VIDEO)</li>
+        <li>고양이 스트레칭</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">홈필라set · 다리밴드 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--mat">새 비디오</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── Day 14 — 하체 마라맛 ── -->
+    <article class="day-card" role="listitem" aria-label="Day 14 하체 마라맛">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 14</span>
+          <span class="day-date">04월 17일</span>
+          <span class="day-weekday">금요일</span>
+        </div>
+        <span class="day-time">오전 07:00</span>
+      </div>
+      <p class="routine-name">하체 — 마라맛</p>
+      <ul class="routine-list-c">
+        <li>뷰릿 안벅지 뿌시기3</li>
+        <li>마라맛3</li>
+        <li>햄스트링 lv.1</li>
+        <li>골반스트레칭</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">홈필라set · 다리밴드 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--tool">마라맛</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- ── Day 15 — 상체 릴렉스 ── -->
+    <article class="day-card" role="listitem" aria-label="Day 15 상체 릴렉스">
+      <div class="day-card-header">
+        <div class="day-meta">
+          <span class="day-number">Day 15</span>
+          <span class="day-date">04월 18일</span>
+          <span class="day-weekday">토요일</span>
+        </div>
+        <span class="day-time">오전 07:00</span>
+      </div>
+      <p class="routine-name">상체 — 릴렉스</p>
+      <ul class="routine-list-c">
+        <li>뷰릿 직장인 허리통증 타파</li>
+        <li>굽은등 교정</li>
+        <li>만세롤링</li>
+      </ul>
+      <div class="card-footer">
+        <div class="supply-row">
+          <span class="supply-text">베이직바 · 레드토핑 · 침대 · 매트</span>
+        </div>
+        <div class="tag-pills">
+          <span class="tag tag--alt">릴렉스</span>
+        </div>
+      </div>
+    </article>
+
+  </div><!-- /timeline -->
+
+  <!-- ══════════════════════════════════════════════════════
+       LOCKED SECTION — Day 16~20
+  ══════════════════════════════════════════════════════ -->
+  <section class="locked-section" aria-label="다가올 루틴 (잠김)">
+    <button
+      class="locked-toggle"
+      aria-expanded="false"
+      aria-controls="locked-body"
+      onclick="toggleLocked(this)"
+    >
+      <!-- lock icon -->
+      <svg class="lock-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <rect x="4" y="8" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M6 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <div class="locked-toggle-text">
+        <div class="locked-toggle-title">다가올 루틴 · Day 16–20</div>
+        <div class="locked-toggle-sub">순차 공개 예정 — 탭해서 보기</div>
+      </div>
+      <!-- chevron -->
+      <svg class="locked-toggle-icon" id="locked-chevron" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M5 7l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <div class="locked-body" id="locked-body" role="list" aria-label="공개 예정 루틴 목록">
+
+      <div class="locked-card" role="listitem">
+        <svg class="lock-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <rect x="4" y="8" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div class="locked-card-left">
+          <span class="locked-day-num">Day 16</span>
+          <span class="locked-date">04월 19일 일</span>
+        </div>
+        <div class="locked-card-right">
+          <span class="locked-reveal"><strong>2026-04-13</strong> 공개 예정</span>
+        </div>
+      </div>
+
+      <div class="locked-card" role="listitem">
+        <svg class="lock-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <rect x="4" y="8" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div class="locked-card-left">
+          <span class="locked-day-num">Day 17</span>
+          <span class="locked-date">04월 20일 월</span>
+        </div>
+        <div class="locked-card-right">
+          <span class="locked-reveal"><strong>2026-04-14</strong> 공개 예정</span>
+        </div>
+      </div>
+
+      <div class="locked-card" role="listitem">
+        <svg class="lock-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <rect x="4" y="8" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div class="locked-card-left">
+          <span class="locked-day-num">Day 18</span>
+          <span class="locked-date">04월 21일 화</span>
+        </div>
+        <div class="locked-card-right">
+          <span class="locked-reveal"><strong>2026-04-15</strong> 공개 예정</span>
+        </div>
+      </div>
+
+      <div class="locked-card" role="listitem">
+        <svg class="lock-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <rect x="4" y="8" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div class="locked-card-left">
+          <span class="locked-day-num">Day 19</span>
+          <span class="locked-date">04월 22일 수</span>
+        </div>
+        <div class="locked-card-right">
+          <span class="locked-reveal"><strong>2026-04-16</strong> 공개 예정</span>
+        </div>
+      </div>
+
+      <div class="locked-card" role="listitem">
+        <svg class="lock-icon" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <rect x="4" y="8" width="10" height="8" rx="2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M6 8V6a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <div class="locked-card-left">
+          <span class="locked-day-num">Day 20</span>
+          <span class="locked-date">04월 23일 목</span>
+        </div>
+        <div class="locked-card-right">
+          <span class="locked-reveal"><strong>2026-04-17</strong> 공개 예정</span>
+        </div>
+      </div>
+
+    </div><!-- /locked-body -->
+  </section>
+
+  <footer class="page-footer" style="margin-top: 32px;">
+    뷰릿 코어클럽 65기 중급반 · 2026-04-04 ~ 2026-04-23
+  </footer>
+
+</main>
+
+<script>
+  function toggleLocked(btn) {
+    const body    = document.getElementById('locked-body');
+    const chevron = document.getElementById('locked-chevron');
+    const isOpen  = body.classList.contains('locked-body--open');
+
+    if (isOpen) {
+      body.classList.remove('locked-body--open');
+      chevron.classList.remove('locked-toggle-icon--open');
+      btn.setAttribute('aria-expanded', 'false');
+    } else {
+      body.classList.add('locked-body--open');
+      chevron.classList.add('locked-toggle-icon--open');
+      btn.setAttribute('aria-expanded', 'true');
+    }
+  }
+</script>
+
+</body>
+</html>

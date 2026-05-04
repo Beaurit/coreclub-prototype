@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>루틴 캘린더 — 뷰릿 코어클럽</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css" />
+  <style>
+    /* ── 디자인 토큰 ─────────────────────────────────────────── */
+    :root {
+      /* 뷰릿 브랜드 팔레트 — 60-30-10 위계 */
+      --bg:           #FFFFFF;       /* 60% 본문 배경 */
+      --surface:      #fae2e3;       /* 30% 라이트 핑크 — 감싸는 톤 (이번 주 카드, 푸터 노트) */
+      --border:       #EDE5E3;
+      --border-light: #F2EBE9;
+      --sage:         #e22929;       /* 10% 시그니처 레드 — 오늘 1포인트만 */
+      --sage-light:   #888888;       /* 보조 회색 (구 sage-light 역할 무력화) */
+      --sage-muted:   #fae2e3;       /* 사이클 점 past 톤 */
+      --mocha:        #1A1A1A;       /* 강조 텍스트 = 차콜 */
+      --mocha-light:  #888888;
+      --text:         #1A1A1A;
+      --text-muted:   #888888;
+      --text-faint:   #BBBBBB;
+      --heading:      #1A1A1A;
+      --today-bg:     #fae2e3;       /* 오늘 카드 배경 = 라이트 핑크 (감쌈) */
+      --today-border: #e22929;       /* 오늘 좌측 사이드라인 = 빨강 */
+      --past-opacity: 0.46;
+      --lock-bg:      #FAFAFA;       /* 잠금 = 중립 오프화이트 (오늘 핑크와 충돌 회피) */
+      --radius:       12px;
+      --radius-sm:    8px;
+    }
+
+    /* ── 리셋 & 베이스 ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      font-size: 16px;
+      -webkit-text-size-adjust: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
+      font-weight: 400;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      padding-bottom: 60px;
+      /* 모바일 tap highlight 제거 */
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 상단 헤더 ──────────────────────────────────────────── */
+    .page-header {
+      padding: 36px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sage);
+      margin-bottom: 10px;
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--heading);
+      line-height: 1.25;
+      margin-bottom: 6px;
+    }
+
+    .page-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .page-meta strong {
+      color: var(--mocha);
+      font-weight: 600;
+    }
+
+    .cycle-bar {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cycle-dots {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+    }
+
+    .cycle-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.2s;
+    }
+
+    .cycle-dot.past   { background: var(--sage-muted); }
+    .cycle-dot.today  { background: var(--sage); }
+    .cycle-dot.open   { background: var(--border); border: 1.5px solid var(--sage-muted); }
+    .cycle-dot.locked { background: var(--border-light); border: 1.5px solid var(--border); }
+
+    .cycle-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── 이번 주 준비물 총정리 ─────────────────────────────── */
+    .supplies-section {
+      margin: 20px 20px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .supplies-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px 14px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .supplies-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .supplies-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text);
+      flex-shrink: 0;
+    }
+
+    .supplies-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--heading);
+      letter-spacing: -0.01em;
+    }
+
+    .supplies-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+
+    .supplies-toggle-icon {
+      width: 16px;
+      height: 16px;
+      color: var(--text-muted);
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    .supplies-toggle-icon.open {
+      transform: rotate(180deg);
+    }
+
+    .supplies-body {
+      padding: 0 18px 16px;
+      display: none;
+    }
+
+    .supplies-body.visible {
+      display: block;
+    }
+
+    .supplies-divider {
+      height: 1px;
+      background: var(--border);
+      margin-bottom: 14px;
+    }
+
+    .supplies-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .supply-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 12.5px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .supply-chip svg {
+      width: 14px;
+      height: 14px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .supplies-note {
+      margin-top: 12px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── 섹션 구분 레이블 ───────────────────────────────────── */
+    .section-label {
+      padding: 24px 24px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .section-label.past-label  { color: var(--text-faint); }
+    .section-label.today-label { color: var(--sage); }
+    .section-label.upcoming-label { color: var(--text-muted); }
+    .section-label.locked-label {
+      color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── 루틴 리스트 ────────────────────────────────────────── */
+    .routine-list {
+      padding: 0 20px;
+    }
+
+    /* ── 루틴 아이템 ────────────────────────────────────────── */
+    .routine-item {
+      position: relative;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--border-light);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .routine-item:last-child { border-bottom: none; }
+
+    /* past 스타일 */
+    .routine-item.past {
+      opacity: var(--past-opacity);
+    }
+
+    /* today 특별 스타일 — 배경 강조 박스 */
+    .routine-item.today {
+      background: var(--today-bg);
+      border-radius: var(--radius-sm);
+      border-bottom: none;
+      padding: 18px 16px;
+      margin: 0 -4px 2px;
+      /* 왼쪽 세이지 라인 */
+      border-left: 3px solid var(--today-border);
+    }
+
+    .routine-item.today + .routine-item {
+      border-top: 1px solid var(--border-light);
+    }
+
+    /* locked 스타일 */
+    .routine-item.locked {
+      cursor: default;
+    }
+
+    /* 아이템 상단 행: 날짜 + 루틴명 */
+    .item-top {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    /* 날짜 영역 */
+    .item-date-block {
+      flex-shrink: 0;
+      min-width: 56px;
+    }
+
+    .item-date {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--heading);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .routine-item.past .item-date { color: var(--text-muted); }
+    .routine-item.today .item-date { color: var(--sage); }
+    .routine-item.locked .item-date { color: var(--text-faint); }
+
+    .item-month-day {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+    }
+
+    .routine-item.past .item-month-day { color: var(--text-faint); }
+
+    /* 루틴 정보 영역 */
+    .item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-day-badge {
+      display: inline-block;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      margin-bottom: 3px;
+    }
+
+    .routine-item.today .item-day-badge {
+      color: var(--sage);
+    }
+
+    .item-routine-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--heading);
+      line-height: 1.3;
+      letter-spacing: -0.015em;
+    }
+
+    .routine-item.past .item-routine-name { color: var(--text); }
+    .routine-item.today .item-routine-name {
+      color: var(--heading);
+      font-weight: 700;
+    }
+
+    .item-today-badge {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--sage);
+      color: #fff;
+      padding: 1px 7px;
+      border-radius: 100px;
+      vertical-align: middle;
+      letter-spacing: 0.02em;
+      position: relative;
+      top: -1px;
+    }
+
+    /* 하단 행: 시간 + 준비물 */
+    .item-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      margin-top: 8px;
+      padding-left: 68px; /* date-block min-width + gap */
+    }
+
+    .item-time {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .item-time svg {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
+
+    .item-supplies {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .supply-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .supply-tag svg {
+      width: 12px;
+      height: 12px;
+      color: var(--sage-light);
+      flex-shrink: 0;
+    }
+
+    .supply-dot {
+      width: 2px;
+      height: 2px;
+      border-radius: 50%;
+      background: var(--border);
+      display: inline-block;
+    }
+
+    /* 한줄소개 펼침 영역 */
+    .item-desc {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.25s ease, margin-top 0.25s ease;
+      opacity: 0;
+      margin-top: 0;
+      padding-left: 68px;
+    }
+
+    .item-desc.open {
+      max-height: 240px;
+      opacity: 1;
+      margin-top: 8px;
+    }
+
+    .item-desc-text {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.7;
+      font-weight: 400;
+    }
+
+    /* 진행 타입 pill (마라맛 / 릴렉스) */
+    .type-pill {
+      display: inline-block;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      margin-left: 6px;
+      border-radius: 100px;
+      background: var(--surface);          /* 라이트 핑크 */
+      color: var(--text);
+      vertical-align: 2px;
+    }
+
+    /* 새 비디오 ⭐ */
+    .new-video-mark {
+      font-size: 11px;
+      margin-left: 5px;
+      color: var(--sage);
+      vertical-align: 1px;
+    }
+
+    /* 잠금 아이템 */
+    .item-lock-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .item-lock-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--text-faint);
+      flex-shrink: 0;
+    }
+
+    .item-lock-info {
+      flex: 1;
+    }
+
+    .item-lock-day {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+    }
+
+    .item-lock-open-date {
+      font-size: 11.5px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+
+    /* expand indicator (chevron) */
+    .item-expand-icon {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      color: var(--text-faint);
+      transition: transform 0.25s ease, color 0.2s;
+    }
+
+    .routine-item.past .item-expand-icon { display: none; }
+    .routine-item.locked .item-expand-icon { display: none; }
+
+    .routine-item.expanded .item-expand-icon {
+      transform: translateY(-50%) rotate(180deg);
+      color: var(--sage);
+    }
+
+    /* ── 하단 여백 안내 ─────────────────────────────────────── */
+    .footer-note {
+      margin: 28px 24px 0;
+      padding: 14px 16px;
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .footer-note p {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .footer-note strong {
+      color: var(--heading);
+      font-weight: 600;
+    }
+
+    /* ── 인라인 SVG 공통 ─────────────────────────────────────── */
+    svg { display: inline-block; vertical-align: middle; }
+
+    /* ── 모바일 미세 조정 ───────────────────────────────────── */
+    @media (max-width: 390px) {
+      .page-header { padding: 28px 18px 16px; }
+      .page-title  { font-size: 20px; }
+      .routine-list { padding: 0 16px; }
+      .supplies-section { margin: 16px 16px 0; }
+      .section-label { padding: 20px 20px 8px; }
+      .item-date { font-size: 18px; }
+      .item-routine-name { font-size: 15px; }
+    }
+
+    @media (min-width: 480px) {
+      body { max-width: 480px; margin: 0 auto; }
+    }
+
+    @media (min-width: 721px) {
+      body { max-width: 520px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.06); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ━━━━━━━━━━ 페이지 헤더 ━━━━━━━━━━ -->
+<header class="page-header">
+  <div class="brand-label">뷰릿 코어클럽</div>
+  <h1 class="page-title">나의 루틴 일정</h1>
+  <p class="page-meta">
+    <strong>오전 07:00</strong> 고정 수업 &nbsp;·&nbsp; 20일 사이클
+  </p>
+  <p class="page-meta" style="margin-top:4px;">
+    2026.04.04 시작 &nbsp;→&nbsp; 2026.04.23 종료
+  </p>
+
+  <!-- 사이클 진행 점 -->
+  <div class="cycle-bar">
+    <div class="cycle-dots" id="cycleDots"></div>
+    <span class="cycle-label">Day 9 / 20</span>
+  </div>
+</header>
+
+
+<!-- ━━━━━━━━━━ 이번 주 준비물 총정리 ━━━━━━━━━━ -->
+<div class="supplies-section">
+  <div class="supplies-header" id="suppliesToggle" role="button" aria-expanded="true" aria-controls="suppliesBody" tabindex="0">
+    <div>
+      <div class="supplies-title-wrap">
+        <!-- 가방 아이콘 -->
+        <svg class="supplies-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        <span class="supplies-title">이번 주 필요한 것들</span>
+      </div>
+      <div class="supplies-subtitle">Day 9–15 준비물 모아보기</div>
+    </div>
+    <!-- 토글 화살표 -->
+    <svg class="supplies-toggle-icon open" id="suppliesChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="18 15 12 9 6 15"/>
+    </svg>
+  </div>
+
+  <div class="supplies-body visible" id="suppliesBody">
+    <div class="supplies-divider"></div>
+    <div class="supplies-grid">
+
+      <!-- 매트 -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="8" width="18" height="10" rx="3"/>
+          <line x1="3" y1="13" x2="21" y2="13"/>
+        </svg>
+        매트
+      </div>
+
+      <!-- 뷰릿 홈필라set -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="7" width="18" height="13" rx="2"/>
+          <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <line x1="3" y1="13" x2="21" y2="13"/>
+        </svg>
+        뷰릿 홈필라set
+      </div>
+
+      <!-- 뷰릿 베이직바 -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="10" width="20" height="4" rx="2"/>
+          <circle cx="3.5" cy="12" r="1.4"/>
+          <circle cx="20.5" cy="12" r="1.4"/>
+        </svg>
+        뷰릿 베이직바
+      </div>
+
+      <!-- 다리밴드 -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12c0-3 4-5 8-5s8 2 8 5"/>
+          <path d="M4 12c0 3 4 5 8 5s8-2 8-5"/>
+        </svg>
+        다리밴드
+      </div>
+
+      <!-- 티칭밴드 -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 13c0-3 4-4 8-4s8 1 8 4"/>
+          <path d="M4 13c0 3 4 4 8 4s8-1 8-4"/>
+          <line x1="3.5" y1="13" x2="6" y2="13"/>
+          <line x1="18" y1="13" x2="20.5" y2="13"/>
+        </svg>
+        티칭밴드
+      </div>
+
+      <!-- 토핑 -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17h18"/>
+          <path d="M5 17a7 7 0 0 1 14 0"/>
+        </svg>
+        토핑set (레드·핑크)
+      </div>
+
+      <!-- 침대 / 베개 -->
+      <div class="supply-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 18v-5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5"/>
+          <line x1="2" y1="18" x2="22" y2="18"/>
+        </svg>
+        침대 · 베개
+      </div>
+
+    </div>
+    <p class="supplies-note">
+      이완/릴렉스 day는 침대·토핑이 자주 사용됩니다. 매일의 정확한 준비물은 각 루틴을 탭해서 확인하세요.
+    </p>
+  </div>
+</div>
+
+
+<!-- ━━━━━━━━━━ 지난 루틴 (Day 1–8) ━━━━━━━━━━ -->
+<div class="section-label past-label">지난 루틴 — Day 1–8</div>
+
+<div class="routine-list" id="pastList"></div>
+
+
+<!-- ━━━━━━━━━━ 오늘 (Day 9) ━━━━━━━━━━ -->
+<div class="section-label today-label">오늘</div>
+
+<div class="routine-list" id="todayList"></div>
+
+
+<!-- ━━━━━━━━━━ 앞으로 올 루틴 (Day 10–15) ━━━━━━━━━━ -->
+<div class="section-label upcoming-label">앞으로 올 루틴 — Day 10–15</div>
+
+<div class="routine-list" id="upcomingList"></div>
+
+
+<!-- ━━━━━━━━━━ 잠금 (Day 16–20) ━━━━━━━━━━ -->
+<div class="section-label locked-label">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+  공개 예정 — Day 16–20
+</div>
+
+<div class="routine-list" id="lockedList"></div>
+
+
+<!-- ━━━━━━━━━━ 하단 안내 ━━━━━━━━━━ -->
+<div class="footer-note">
+  <p>
+    <strong>수업 일정 변경이 필요하신가요?</strong><br />
+    시간 변경은 20일 사이클 내 최대 4회까지 가능합니다.<br />
+    문의는 뷰릿 채널톡으로 연락주세요.
+  </p>
+</div>
+
+
+<!-- ━━━━━━━━━━ 인라인 SVG 심볼 ━━━━━━━━━━ -->
+<!-- 아이콘을 JS에서 함수로 반환 -->
+
+<script>
+/* ── SVG 아이콘 팩토리 ────────────────────────────────────── */
+function svgClock() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>`;
+}
+
+function svgMat() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="8" width="18" height="10" rx="3"/>
+    <line x1="3" y1="13" x2="21" y2="13"/>
+  </svg>`;
+}
+
+function svgBar() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="10" width="20" height="4" rx="2"/>
+    <circle cx="3.5" cy="12" r="1.4" fill="currentColor"/>
+    <circle cx="20.5" cy="12" r="1.4" fill="currentColor"/>
+  </svg>`;
+}
+
+function svgKit() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="7" width="18" height="13" rx="2"/>
+    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <line x1="3" y1="13" x2="21" y2="13"/>
+  </svg>`;
+}
+
+function svgBand() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 12c0-3 4-5 8-5s8 2 8 5"/>
+    <path d="M4 12c0 3 4 5 8 5s8-2 8-5"/>
+  </svg>`;
+}
+
+function svgTopping() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 17h18"/>
+    <path d="M5 17a7 7 0 0 1 14 0"/>
+  </svg>`;
+}
+
+function svgBed() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 18v-5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5"/>
+    <line x1="2" y1="18" x2="22" y2="18"/>
+  </svg>`;
+}
+
+function svgPillow() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="9" width="18" height="6" rx="3"/>
+  </svg>`;
+}
+
+function svgFoam() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="9" width="20" height="7" rx="3.5"/>
+    <line x1="7" y1="9" x2="7" y2="16"/>
+    <line x1="12" y1="9" x2="12" y2="16"/>
+    <line x1="17" y1="9" x2="17" y2="16"/>
+  </svg>`;
+}
+
+function svgLock() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>`;
+}
+
+function svgChevron() {
+  return `<svg class="item-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
+  </svg>`;
+}
+
+/* ── 준비물 아이콘 매핑 (뷰릿 65기 실 장비) ──────────────── */
+function supplyIcon(name) {
+  if (name.includes('베이직바')) return svgBar();
+  if (name.includes('홈필라'))   return svgKit();
+  if (name.includes('밴드'))     return svgBand();
+  if (name.includes('토핑'))     return svgTopping();
+  if (name.includes('침대'))     return svgBed();
+  if (name.includes('베개'))     return svgPillow();
+  if (name.includes('폼롤러'))   return svgFoam();
+  if (name.includes('매트'))     return svgMat();
+  return '';
+}
+
+/* ── 루틴 데이터 — 코어클럽 65기 중급반 (실데이터) ─────── */
+const ROUTINES = [
+  { day: 1, date: '2026-04-04', dow: '토', category: '하체', type: '릴렉스',
+    routines: ['뷰릿 허벅지360돌려깎기', '종아리360돌려깎기', '다리 스트레칭1'],
+    supplies: ['뷰릿 베이직바', '베개', '매트'], status: 'past' },
+
+  { day: 2, date: '2026-04-05', dow: '일', category: '릴렉스 · 코어',
+    routines: ['뷰릿 피치힙 만들기', '완벽 옆태라인', '흉곽호흡법', '코어100ver4', '고양이 스트레칭'],
+    supplies: ['뷰릿 베이직바', '레드토핑', '침대', '매트'], status: 'past' },
+
+  { day: 3, date: '2026-04-06', dow: '월', category: '어깨', type: '마라맛',
+    routines: ['뷰릿 만세롤링', '마라맛7', '마라맛4'],
+    supplies: ['뷰릿 베이직바', '다리밴드', '티칭밴드', '매트'], status: 'past' },
+
+  { day: 4, date: '2026-04-07', dow: '화', category: '전신',
+    routines: ['뷰릿 코어스텝1', '힙폭파3', '코어100ver1'],
+    supplies: ['뷰릿 베이직바', '뷰릿 홈필라set', '매트'], status: 'past' },
+
+  { day: 5, date: '2026-04-08', dow: '수', category: '복부', type: '릴렉스',
+    routines: ['뷰릿 얼굴리프팅', '거북목 교정', '직장인 허리통증 타파', '등 스트레칭'],
+    supplies: ['뷰릿 베이직바', '토핑set', '침대', '매트'], status: 'past' },
+
+  { day: 6, date: '2026-04-09', dow: '목', category: '하체', newVideo: true,
+    routines: ['뷰릿 흉곽100%줄이기4 (NEW VIDEO)', '직각어깨100ver3', '다리 스트레칭2', '고양이 스트레칭'],
+    supplies: ['뷰릿 홈필라set', '다리밴드', '매트'], status: 'past' },
+
+  { day: 7, date: '2026-04-10', dow: '금', category: '골반',
+    routines: ['뷰릿 골반천재 매운맛2', '승마살 삭제', '골반스트레칭', '고양이 스트레칭'],
+    supplies: ['뷰릿 홈필라set', '다리밴드', '매트'], status: 'past' },
+
+  { day: 8, date: '2026-04-11', dow: '토', category: '전신', type: '릴렉스',
+    routines: ['뷰릿 거북목 교정', '얼굴부종 타파', '허그롤링', '등 스트레칭'],
+    supplies: ['뷰릿 베이직바', '블루토핑', '베개', '침대', '매트'], status: 'past' },
+
+  { day: 9, date: '2026-04-12', dow: '일', category: '어깨 · 하체',
+    routines: ['뷰릿 코어스텝1', '직각어깨100ver2', '엉밑살 뿌시기', '종아리 알 뿌수기', '골반스트레칭'],
+    supplies: ['뷰릿 홈필라set', '다리밴드', '티칭밴드', '핑크토핑', '매트'], status: 'today' },
+
+  { day: 10, date: '2026-04-13', dow: '월', category: '어깨', type: '마라맛',
+    routines: ['뷰릿 승모롤링 매운맛2', '마라맛9', '마라맛10', '등 스트레칭'],
+    supplies: ['뷰릿 베이직바', '다리밴드', '티칭밴드', '매트'], status: 'upcoming' },
+
+  { day: 11, date: '2026-04-14', dow: '화', category: '전신', type: '마라맛',
+    routines: ['뷰릿 스쿼트플러스1', '마라맛11', '코어100ver4'],
+    supplies: ['뷰릿 홈필라set', '다리밴드', '매트'], status: 'upcoming' },
+
+  { day: 12, date: '2026-04-15', dow: '수', category: '복부', type: '릴렉스',
+    routines: ['뷰릿 뱃살타파', '굽은등 교정', '붓기제로 마사지', '코어100ver5'],
+    supplies: ['뷰릿 베이직바', '토핑set', '침대', '매트'], status: 'upcoming' },
+
+  { day: 13, date: '2026-04-16', dow: '목', category: '하체', newVideo: true,
+    routines: ['뷰릿 직각어깨100ver2', '팔뚝살 돌려깎기2', '흉곽100%줄이기4 (NEW VIDEO)', '고양이 스트레칭'],
+    supplies: ['뷰릿 홈필라set', '다리밴드', '매트'], status: 'upcoming' },
+
+  { day: 14, date: '2026-04-17', dow: '금', category: '하체', type: '마라맛',
+    routines: ['뷰릿 안벅지 뿌시기3', '마라맛3', '햄스트링 lv.1', '골반스트레칭'],
+    supplies: ['뷰릿 홈필라set', '다리밴드', '매트'], status: 'upcoming' },
+
+  { day: 15, date: '2026-04-18', dow: '토', category: '상체', type: '릴렉스',
+    routines: ['뷰릿 직장인 허리통증 타파', '굽은등 교정', '만세롤링'],
+    supplies: ['뷰릿 베이직바', '레드토핑', '침대', '매트'], status: 'upcoming' },
+
+  { day: 16, date: '2026-04-19', dow: '일', openDate: '2026-04-13', status: 'locked' },
+  { day: 17, date: '2026-04-20', dow: '월', openDate: '2026-04-14', status: 'locked' },
+  { day: 18, date: '2026-04-21', dow: '화', openDate: '2026-04-15', status: 'locked' },
+  { day: 19, date: '2026-04-22', dow: '수', openDate: '2026-04-16', status: 'locked' },
+  { day: 20, date: '2026-04-23', dow: '목', openDate: '2026-04-17', status: 'locked' },
+];
+
+/* ── 날짜 파싱 헬퍼 ────────────────────────────────────── */
+function parseDateLabel(dateStr) {
+  const [, m, d] = dateStr.split('-');
+  return `${parseInt(m)}/${parseInt(d)}`;
+}
+
+/* ── 준비물 렌더링 ─────────────────────────────────────── */
+function renderSupplies(supplies) {
+  if (!supplies || supplies.length === 0) return '';
+  const tags = supplies.map((s, i) => {
+    const icon = supplyIcon(s);
+    const dot  = i < supplies.length - 1 ? `<span class="supply-dot"></span>` : '';
+    return `<span class="supply-tag">${icon}${s}</span>${dot}`;
+  }).join('');
+  return `<div class="item-supplies">${tags}</div>`;
+}
+
+/* ── 루틴 아이템 HTML 생성 ─────────────────────────────── */
+function renderRoutineItem(r) {
+  const dateLabel  = parseDateLabel(r.date);
+  const isToday    = r.status === 'today';
+  const isPast     = r.status === 'past';
+  const isLocked   = r.status === 'locked';
+
+  if (isLocked) {
+    return `
+      <div class="routine-item locked" data-day="${r.day}">
+        <div class="item-lock-row">
+          <svg class="item-lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <div class="item-lock-info">
+            <div class="item-lock-day">Day ${r.day} &nbsp;·&nbsp; ${dateLabel} (${r.dow})</div>
+            <div class="item-lock-open-date">${r.openDate} 공개 예정</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const todayBadge   = isToday ? `<span class="item-today-badge">오늘</span>` : '';
+  const newVideoMark = r.newVideo ? `<span class="new-video-mark" title="새 비디오">⭐</span>` : '';
+  const typeLabel    = r.type ? `<span class="type-pill">${r.type}</span>` : '';
+  const suppliesHtml = renderSupplies(r.supplies);
+  const routinesList = (r.routines || []).map(x => `· ${x}`).join('<br>');
+
+  return `
+    <div class="routine-item ${r.status}" data-day="${r.day}" role="button" tabindex="${isPast ? -1 : 0}" aria-expanded="false">
+      <div class="item-top">
+        <div class="item-date-block">
+          <div class="item-date">${parseInt(r.date.split('-')[2])}</div>
+          <div class="item-month-day">${dateLabel} (${r.dow})</div>
+        </div>
+        <div class="item-info">
+          <div class="item-day-badge">Day ${r.day}</div>
+          <div class="item-routine-name">${r.category}${typeLabel}${newVideoMark}${todayBadge}</div>
+        </div>
+      </div>
+      <div class="item-meta">
+        <div class="item-time">
+          ${svgClock()}
+          오전 07:00
+        </div>
+        ${suppliesHtml}
+      </div>
+      <div class="item-desc" id="desc-${r.day}">
+        <div class="item-desc-text">${routinesList}</div>
+      </div>
+      ${isPast ? '' : svgChevron()}
+    </div>`;
+}
+
+/* ── 사이클 점 렌더링 ─────────────────────────────────── */
+function renderCycleDots() {
+  const container = document.getElementById('cycleDots');
+  ROUTINES.forEach(r => {
+    const dot = document.createElement('div');
+    dot.className = 'cycle-dot ' + r.status;
+    dot.title = `Day ${r.day}`;
+    container.appendChild(dot);
+  });
+}
+
+/* ── 리스트 렌더링 ─────────────────────────────────────── */
+function renderLists() {
+  const past    = ROUTINES.filter(r => r.status === 'past');
+  const today   = ROUTINES.filter(r => r.status === 'today');
+  const upcoming= ROUTINES.filter(r => r.status === 'upcoming');
+  const locked  = ROUTINES.filter(r => r.status === 'locked');
+
+  document.getElementById('pastList').innerHTML     = past.map(renderRoutineItem).join('');
+  document.getElementById('todayList').innerHTML    = today.map(renderRoutineItem).join('');
+  document.getElementById('upcomingList').innerHTML = upcoming.map(renderRoutineItem).join('');
+  document.getElementById('lockedList').innerHTML   = locked.map(renderRoutineItem).join('');
+}
+
+/* ── 인터랙션 — 탭으로 한줄소개 펼치기 ─────────────────── */
+function initInteractions() {
+  document.querySelectorAll('.routine-item:not(.locked):not(.past)').forEach(item => {
+    item.addEventListener('click', function() {
+      const day     = this.dataset.day;
+      const desc    = document.getElementById(`desc-${day}`);
+      const chevron = this.querySelector('.item-expand-icon');
+      const isOpen  = desc.classList.contains('open');
+
+      // 열려있으면 닫기
+      if (isOpen) {
+        desc.classList.remove('open');
+        this.classList.remove('expanded');
+        this.setAttribute('aria-expanded', 'false');
+      } else {
+        // 다른 열린 항목 닫기
+        document.querySelectorAll('.item-desc.open').forEach(d => {
+          d.classList.remove('open');
+          const parentItem = d.closest('.routine-item');
+          if (parentItem) {
+            parentItem.classList.remove('expanded');
+            parentItem.setAttribute('aria-expanded', 'false');
+          }
+        });
+        desc.classList.add('open');
+        this.classList.add('expanded');
+        this.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    // 키보드 접근성
+    item.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        this.click();
+      }
+    });
+  });
+}
+
+/* ── 준비물 섹션 토글 ─────────────────────────────────── */
+function initSuppliesToggle() {
+  const btn  = document.getElementById('suppliesToggle');
+  const body = document.getElementById('suppliesBody');
+  const icon = document.getElementById('suppliesChevron');
+
+  btn.addEventListener('click', function() {
+    const isVisible = body.classList.contains('visible');
+    body.classList.toggle('visible', !isVisible);
+    icon.classList.toggle('open', !isVisible);
+    btn.setAttribute('aria-expanded', String(!isVisible));
+  });
+
+  btn.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.click();
+    }
+  });
+}
+
+/* ── 오늘 루틴 자동 펼침 ──────────────────────────────── */
+function autoExpandToday() {
+  const todayItem = document.querySelector('.routine-item.today');
+  if (!todayItem) return;
+  const day  = todayItem.dataset.day;
+  const desc = document.getElementById(`desc-${day}`);
+  if (desc) {
+    desc.classList.add('open');
+    todayItem.classList.add('expanded');
+    todayItem.setAttribute('aria-expanded', 'true');
+  }
+}
+
+/* ── 초기화 ───────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  renderCycleDots();
+  renderLists();
+  initInteractions();
+  initSuppliesToggle();
+  autoExpandToday();
+
+  // 오늘 위치로 부드럽게 스크롤
+  const todaySection = document.querySelector('.today-label');
+  if (todaySection) {
+    setTimeout(() => {
+      todaySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  }
+});
+</script>
+
+</body>
+</html>

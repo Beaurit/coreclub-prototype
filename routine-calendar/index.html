@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>코어클럽 루틴 캘린더 프로토타입 — 투표</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', sans-serif;
+    background: #FAFAFA;
+    color: #1A1A1A;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 540px; width: 100%; }
+
+  /* 헤더 */
+  .brand-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #e22929;
+    background: #fae2e3;
+    padding: 4px 10px;
+    border-radius: 100px;
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-size: 24px;
+    font-weight: 800;
+    color: #1a1a1a;
+    line-height: 1.3;
+    margin-bottom: 8px;
+    letter-spacing: -.02em;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    margin-bottom: 8px;
+  }
+  .meta {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 28px;
+  }
+
+  /* 안내 카드 */
+  .info-card {
+    background: #fae2e3;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: #1A1A1A;
+  }
+  .info-card strong { font-weight: 700; }
+  .info-card .label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: #e22929;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  /* 방향 카드 */
+  .direction-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 26px 22px;
+    margin-bottom: 14px;
+    text-decoration: none;
+    display: block;
+    transition: all 0.2s ease;
+    border: 1.5px solid #EDEDED;
+    box-shadow: 0 2px 10px rgba(0,0,0,.04);
+  }
+  .direction-card:hover { border-color: #e22929; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+  .direction-card:active { transform: scale(.99); }
+
+  .dc-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .12em;
+    color: #888;
+    margin-bottom: 6px;
+  }
+  .dc-name {
+    font-size: 19px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    letter-spacing: -.015em;
+  }
+  .dc-desc {
+    font-size: 13.5px;
+    color: #555;
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .dc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .dc-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .dc-tag.tag-pink { background: #fae2e3; color: #1A1A1A; }
+  .dc-tag.tag-gray { background: #F5F5F5; color: #555; }
+
+  /* 푸터 */
+  footer {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 11px;
+    color: #BBB;
+    line-height: 1.6;
+  }
+  footer a { color: #888; text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* 모바일 미세 조정 */
+  @media (max-width: 380px) {
+    h1 { font-size: 21px; }
+    .direction-card { padding: 22px 18px; }
+    .dc-name { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <span class="brand-tag">뷰릿 코어클럽 · 65기 중급반 데이터</span>
+  <h1>루틴 캘린더 프로토타입<br>어느 방향이 좋을까요?</h1>
+  <p class="subtitle">상시제 전환에 맞춰 수강생이 다가올 7일 루틴·준비물을 미리 확인할 수 있는 페이지입니다.</p>
+  <p class="meta">3가지 방향 · 모바일 우선 · 본질: <strong>정보 공유 (출석체크 X)</strong></p>
+
+  <!-- 안내 카드 -->
+  <div class="info-card">
+    <span class="label">데모 시점</span>
+    <p>오늘 = 2026-04-12(일) · Day 9 / 20<br>
+    신청일 2026-04-04 ~ 종료 2026-04-23 · 매일 오전 07:00 고정</p>
+  </div>
+
+  <!-- 방향 A -->
+  <a class="direction-card" href="direction-a-list.html">
+    <div class="dc-label">DIRECTION A</div>
+    <div class="dc-name">주간 리스트</div>
+    <div class="dc-desc">다이어리 노트 느낌의 수직 리스트. 탭하면 루틴이 펼쳐지는 차분한 흐름. "이번 주 필요한 것들" 요약 카드 상단 고정.</div>
+    <div class="dc-tags">
+      <span class="dc-tag tag-gray">단순 정보 확인자</span>
+      <span class="dc-tag tag-pink">부담 최소</span>
+    </div>
+  </a>
+
+  <!-- 방향 B -->
+  <a class="direction-card" href="direction-b-calendar.html">
+    <div class="dc-label">DIRECTION B</div>
+    <div class="dc-name">2주 캘린더 그리드</div>
+    <div class="dc-desc">한 화면에서 14일 흐름을 한눈에. 셀 탭 → 바텀시트로 상세 루틴·준비물 확인. 잠금 셀은 라이트 핑크 + 자물쇠.</div>
+    <div class="dc-tags">
+      <span class="dc-tag tag-gray">시각적 예측 선호</span>
+      <span class="dc-tag tag-pink">전체 흐름 조망</span>
+    </div>
+  </a>
+
+  <!-- 방향 C -->
+  <a class="direction-card" href="direction-c-planner.html">
+    <div class="dc-label">DIRECTION C</div>
+    <div class="dc-name">주간 플래너</div>
+    <div class="dc-desc">"다음 7일에 필요한 것들" 라이트 핑크 히어로 + 7일 카드 스트림. 각 카드에 마라맛/릴렉스/⭐ 태그.</div>
+    <div class="dc-tags">
+      <span class="dc-tag tag-gray">출장·여행 잦음</span>
+      <span class="dc-tag tag-pink">준비물 한눈에</span>
+    </div>
+  </a>
+
+  <p style="text-align:center; font-size:13px; color:#888; margin-top:28px; line-height:1.7;">
+    3개를 모두 보신 뒤 의견·투표 부탁드려요 🙏
+  </p>
+
+  <footer>
+    데이터 출처: 코어클럽 65기 중급반 루틴<br>
+    브랜드 팔레트: #e22929 · #fae2e3 · #FFFFFF · #1A1A1A
+  </footer>
+
+</div>
+</body>
+</html>
